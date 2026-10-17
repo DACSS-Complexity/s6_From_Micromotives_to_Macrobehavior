@@ -3,7 +3,7 @@
   <code><![CDATA[breed [citizens citizen]
 
 patches-own [
-  occupied?  ; whether a citizen occupies this location
+  occupied_lot?  ; whether a citizen occupies this location
 ]
 
 citizens-own [
@@ -24,11 +24,11 @@ to setup
   ; initialize residential locations and create citizens
   ask patches [
     set pcolor white
-    set occupied? false
+    set occupied_lot? false
 
     ; populate each location according to the density parameter
     if random 100 < density [
-      set occupied? true
+      set occupied_lot? true
 
       sprout-citizens 1 [
         set group one-of [0 1]          ; assign a group randomly
@@ -70,7 +70,7 @@ end
 
 to move
   ; identify all unoccupied residential locations
-  let available-locations patches with [not occupied?]
+  let available-locations patches with [not occupied_lot?]
 
   ; relocate only if an available location exists
   if any? available-locations [
@@ -79,14 +79,14 @@ to move
 
     ; release the current location
     ask origin [
-      set occupied? false
+      set occupied_lot? false
     ]
 
     move-to destination  ; relocate the citizen
 
     ; occupy the new location
     ask destination [
-      set occupied? true
+      set occupied_lot? true
     ]
   ]
 end
