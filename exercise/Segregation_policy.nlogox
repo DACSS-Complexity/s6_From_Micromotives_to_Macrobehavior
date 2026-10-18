@@ -1211,7 +1211,7 @@ This model was converted to NetLogo as part of the projects: PARTICIPATORY SIMUL
   </linkShapes>
   <previewCommands>setup repeat 75 [ go ]</previewCommands>
   <experiments>
-    <experiment name="policy-relocation" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="false" timeLimit="1000">
+    <experiment name="policy-relocation" repetitions="30" sequentialRunOrder="true" runMetricsEveryStep="false" timeLimit="1000">
       <setup>setup</setup>
       <go>go</go>
       <postRun>export-final-positions</postRun>
