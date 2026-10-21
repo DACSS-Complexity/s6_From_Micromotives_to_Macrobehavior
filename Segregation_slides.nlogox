@@ -175,7 +175,7 @@ end
 
 ## WHAT IS IT?
 
-This course model was adapted by Prof. Jose Magallanes from Uri Wilensky’s NetLogo Segregation model (1997). It supports reverse engineering, design critique, and experiments with a policy-relevant question.
+This course model was adapted by Prof. Jose Magallanes from Uri Wilensky’s NetLogo Segregation model (1997). It supports interactive exploration, reverse engineering, and design critique.
 
 The model explores how individual residential choices can produce collective segregation. Citizens belong to one of two groups and occupy locations on a residential grid. Each citizen requires a minimum percentage of its occupied neighbours to belong to its own group. Citizens whose neighbourhoods fall below that threshold are unhappy and relocate to a randomly selected vacant location.
 
@@ -209,7 +209,7 @@ Click **GO ONCE** to execute one cycle or **GO** to run continuously. When horiz
 
 - Stop the simulation when all citizens are satisfied.
 - Relocate dissatisfied citizens to available locations.
-- Reevaluate satisfaction and update appearance after relocation.
+- After all dissatisfied citizens have had a turn to move, reevaluate satisfaction and update appearance for all citizens.
 - Advance the simulation clock.
 
 ### Citizen methods (A1)
@@ -219,16 +219,16 @@ Click **GO ONCE** to execute one cycle or **GO** to run continuously. When horiz
 - Identify all unoccupied residential locations.
 - Relocate only if an available location exists.
 - Record the current location and select a random vacant location.
-- Release the current location.
+- Release the current location by setting its `occupied_lot?` state to `false`.
 - Relocate the citizen.
-- Occupy the new location.
+- Occupy the new location by setting its `occupied_lot?` state to `true`.
 
 **`evaluate()` — Neighbourhood evaluation**
 
 - Count same-group citizens on the eight surrounding patches.
 - Count other-group citizens on the eight surrounding patches.
 - Calculate the total number of occupied neighbouring locations.
-- Determine satisfaction based on the required similarity percentage.
+- Determine satisfaction using `similar-nearby >= (%-similar-wanted * total-nearby / 100)`.
 
 **`update()` — Appearance**
 
@@ -254,13 +254,9 @@ The observer coordinates simulation execution through `setup` and `go`, while ob
 
 **% SIMILAR** reports the percentage of pooled neighbour observations belonging to the same group. The reporter `calculate-percent-similar` sums `similar-nearby` across citizens and divides by the sum of `total-nearby`. Citizens with more neighbours contribute more weight. This is an indicator of local similarity rather than a simple average of each citizen's percentage or a comprehensive measure of segregation.
 
-**NUM-UNHAPPY** reports the number of dissatisfied citizens. **% UNHAPPY** reports that number as a percentage of the population, calculated by `calculate-percent-unhappy`.
+**% UNHAPPY** reports the percentage of dissatisfied citizens, calculated by `calculate-percent-unhappy`.
 
-The Percent Similar plot uses `calculate-percent-similar`. The Number-unhappy plot displays the number of dissatisfied citizens, calculated using:
-
-```netlogo
-count citizens with [not happy?]
-```
+These are the model’s two reporter indicators. Monitors and plot pens for percent similar use `calculate-percent-similar`; those for percent unhappy use `calculate-percent-unhappy`.
 
 The two groups initially mix randomly, so initial similarity will generally be near 50%, with variation between runs. Color identifies group membership. Shape makes satisfaction visible while students inspect the spatial pattern.
 
@@ -278,34 +274,50 @@ Recover the specification from the code before proposing improvements.
 
 - `breed [citizens citizen]` defines the Citizen breed. Both residential groups belong to this breed; their membership is represented by the `group` state.
 - `citizens-own` declares the states `group`, `happy?`, `similar-nearby`, `other-nearby`, and `total-nearby`.
-- `patches-own [occupied?]` declares the occupancy state of each residential location.
+- `patches-own [occupied_lot?]` declares the occupancy state of each residential location.
 - Patches represent **A2**, the residential arena. SETUP initializes their appearance and occupancy.
 - Built-in attributes such as color, shape, size, and position need no additional declaration, but their conceptual meaning still requires specification.
-- The **Four As** identify Agent, Arena, Artificiality, and Array. Citizens are A1 agents; the residential grid forms the A2 arena. The model represents local neighbourhood relations and emerging spatial arrangements without explicit housing-market or institutional mechanisms.
-- **LUL** describes classes, states, capabilities, and relations. The Citizen class has three principal methods: `move()`, `evaluate()`, and `update()`. The City arena represents residential locations whose occupancy is stored in the patch state `occupied?`. The arena does not make autonomous residential decisions.
+- The **Four As** identify Agent, Arena, Artificiality, and Array. **A1 — Agent:** Citizen. **A2 — Arena:** City, represented by residential patches. **A3 — Artificiality:** No separate artificiality is required in this simplified model; it contains no explicit housing-market or institutional mechanisms. **A4 — Array:** Citizen–City relations represent occupancy and access to vacant locations; Citizen–Citizen relations represent detection of neighbouring citizens.
+- **LUL** describes classes, states, capabilities, and relations. The Citizen class has three principal methods: `move()`, `evaluate()`, and `update()`. The City arena represents residential locations whose occupancy is stored in the patch state `occupied_lot?`. The arena does not make autonomous residential decisions. The slides use the conceptual method names `evaluate_neighbourhood()` and `update_appearance()`; these correspond to `evaluate` and `update` in the code. Diagram labels such as `happy` and `occupied_lot` correspond to the Boolean code states `happy?` and `occupied_lot?`.
 - The **FChart** describes the execution sequence: GO, stopping condition, relocation, evaluation, appearance update, and CLOCK. Observer-level reporters calculate macro-level indicators independently when requested.
 - **Procedures** (`to`) perform operations that may change the simulation state, while **reporters** (`to-report`) calculate and return values. The model uses Citizen procedures for behavior and observer-level reporters for macro-level measurements.
 
 Reconfiguration may resume when inspecting implementation reveals an unclear meaning or an omitted mechanism.
 
-## THINGS TO TRY: A POLICY QUESTION
 
-**Would greater acceptance of mixed neighbourhoods be sufficient to reduce segregation?**
+## THINGS TO TRY
 
-Use BehaviorSpace to compare lower and higher values of `%-similar-wanted` across several densities. Repeat each parameter combination to observe variation between runs.
+Explore the model interactively using SETUP, GO ONCE, and GO. Compare the residential map with % SIMILAR and % UNHAPPY.
 
-A proposed classroom experiment uses densities **70, 85, and 95**; thresholds **10, 30, 50, 70 and 80**; and **twenty repetitions** per combination, for **300 runs**.
+### Change the similarity threshold
 
-Use `setup` and `go`, a limit of 1,000 steps, and the following final measurements:
+Keep `density` fixed. Try lower and higher values of `%-similar-wanted`, running SETUP before each fresh scenario.
 
-- `calculate-percent-similar`
-- `calculate-percent-unhappy`
-- `ticks`
-- `all? citizens [happy?]`
+- Can citizens become happy while the city remains strongly clustered by group?
+- Does a modest minimum similarity requirement produce a similarly modest final same-group neighbour share?
+- How does the threshold affect the number of cycles needed for everyone to become happy? Do some runs continue without reaching that state?
 
-Export the results for analysis outside NetLogo. Compare the two percentage indicators across parameter combinations. Use `ticks` and `all? citizens [happy?]` to distinguish all-happy endings from runs reaching the step limit. A capped run does not establish equilibrium.
+### Change population density
 
-Lowering the threshold represents a hypothesized change in preferences. It does not implement or evaluate a specific policy program. A real policy analysis must represent how an intervention changes preferences or feasible choices and use relevant empirical evidence.
+Keep `%-similar-wanted` fixed and compare lower and higher values of `density`. Click SETUP after changing density so the new value takes effect.
+
+- How does the availability of vacant locations affect relocation and the emerging pattern?
+- How do density and the number of occupied neighbours affect happiness?
+- What happens if no vacant locations are available while some citizens remain unhappy?
+
+### Follow the feedback
+
+Use GO ONCE to inspect successive cycles. Follow changes in the map, shapes, and both percentage indicators.
+
+- Can an unhappy citizen move and remain unhappy?
+- Can a move make a previously happy citizen unhappy?
+- Must % UNHAPPY decrease every cycle?
+
+### Repeat and explain
+
+Repeat SETUP with the same parameter values several times. Compare initial populations, final patterns, and stopping times. Random initialization and movement can produce different outcomes under the same settings.
+
+Use the code to explain your observations. Distinguish individual happiness from collective residential similarity, and identify what this simplified model leaves out of real residential decisions.
 
 ## NETLOGO FEATURES AND MODEL LIMITS
 
@@ -313,11 +325,11 @@ Lowering the threshold represents a hypothesized change in preferences. It does 
 
 `ask` selects the agents that act. Called procedures retain the executing agent’s context.
 
-`move` identifies vacant patches using `patches with [not occupied?]` and selects a random destination using `one-of`. The procedure uses `any?` to verify that at least one vacant location exists.
+`move` identifies vacant patches using `patches with [not occupied_lot?]` and selects a random destination using `one-of`. The procedure uses `any?` to verify that at least one vacant location exists. It checks vacancy, not whether the destination will satisfy the citizen’s similarity threshold. NetLogo executes the selected dissatisfied citizens in random order, updating occupancy after each move.
 
 `patch-here` identifies the citizen’s current location. `move-to` relocates the citizen directly to the selected destination patch.
 
-The `occupied?` state is updated explicitly: the origin becomes vacant and the destination becomes occupied. This maintains the one-citizen-per-patch constraint.
+The `occupied_lot?` state is updated explicitly: the origin becomes vacant and the destination becomes occupied. This maintains the one-citizen-per-patch constraint.
 
 The `evaluate` method uses `citizens-on neighbors` to identify citizens on the eight surrounding patches. The `with` condition compares their group membership with that of the evaluating citizen, using `myself`.
 
@@ -325,13 +337,13 @@ Citizens with no occupied neighbours are considered satisfied because their requ
 
 The `update` method changes the citizen’s shape according to its satisfaction state. It does not change group membership or location.
 
-`calculate-percent-similar` and `calculate-percent-unhappy` are observer-level reporters that calculate macro-level indicators from the citizens’ states. They can be called directly by monitors, plots, and BehaviorSpace.
+`calculate-percent-similar` and `calculate-percent-unhappy` are observer-level reporters that calculate macro-level indicators from the citizens’ states. They can be called directly by monitors and plots.
 
 Both reporters guard against division by zero. `calculate-percent-similar` reports zero when there are no occupied-neighbour observations, while `calculate-percent-unhappy` reports zero when there are no citizens.
 
 When no vacant patches exist, `move` leaves dissatisfied citizens in place. The simulation may therefore continue without achieving an all-satisfied state.
 
-A BehaviorSpace step limit restricts the number of simulation steps. Reaching that limit does not establish that the system has reached equilibrium.
+The `go` procedure stops when all citizens are happy. This code contains no fixed tick limit. If happiness is never achieved, the simulation can continue until the user stops GO.
 
 ## CREDITS AND REFERENCES
 
@@ -339,7 +351,7 @@ This teaching adaptation defines an explicit Citizen breed, separates group memb
 
 The adaptation separates neighbourhood evaluation, relocation, and appearance updates into Citizen procedures, while macro-level indicators are calculated through observer-level reporters.
 
-The reverse-engineering scaffold and proposed experiments are teaching adaptations, rather than claims made by the original authors.
+The reverse-engineering scaffold and interactive activities are teaching adaptations, rather than claims made by the original authors.
 
 Schelling, T. C. (1969). Models of Segregation. *The American Economic Review, 59*(2), 488–493.
 
@@ -367,7 +379,7 @@ Prof. Jose Magallanes prepared this teaching model for an agent-based modeling c
 
 This version introduces an explicit Citizen breed, separates group membership from color, tracks residential occupancy through patch states, and implements direct relocation to randomly selected vacant locations.
 
-It also separates citizen relocation, neighbourhood evaluation, and appearance updates into distinct methods, calculates macro-level indicators through observer-level reporters, and includes a reverse-engineering teaching approach and a proposed BehaviorSpace policy experiment.
+It also separates citizen relocation, neighbourhood evaluation, and appearance updates into distinct methods, calculates macro-level indicators through observer-level reporters, and includes a reverse-engineering teaching approach and interactive exploration activities.
 
 The model draws on Thomas Schelling’s work on how individual residential preferences can generate collective segregation.
 
@@ -389,7 +401,8 @@ This model was created as part of the project: CONNECTED MATHEMATICS: MAKING SEN
 
 This model was converted to NetLogo as part of the projects: PARTICIPATORY SIMULATIONS: NETWORK-BASED DESIGN FOR SYSTEMS LEARNING IN CLASSROOMS and/or INTEGRATED SIMULATION AND MODELING ENVIRONMENT. The project gratefully acknowledges the support of the National Science Foundation (REPP & ROLE programs) — grant numbers REC #9814682 and REC-0126227. Converted from StarLogoT to NetLogo, 2001.
 
-<!-- 1997 2001 -->]]></info>
+<!-- 1997 2001 -->
+]]></info>
   <turtleShapes>
     <shape name="default" rotatable="true" editableColorIndex="0">
       <polygon color="-1920102913" filled="true" marked="true">
@@ -1178,31 +1191,4 @@ This model was converted to NetLogo as part of the projects: PARTICIPATORY SIMUL
     </shape>
   </linkShapes>
   <previewCommands>setup repeat 75 [ go ]</previewCommands>
-  <experiments>
-    <experiment name="experiment" repetitions="20" sequentialRunOrder="true" runMetricsEveryStep="false" timeLimit="1000">
-      <setup>setup</setup>
-      <go>go</go>
-      <exitCondition>all? citizens [happy?]</exitCondition>
-      <metrics>
-        <metric>calculate-percent-similar</metric>
-        <metric>calculate-percent-unhappy</metric>
-        <metric>ticks</metric>
-        <metric>all? citizens [happy?]</metric>
-      </metrics>
-      <constants>
-        <enumeratedValueSet variable="%-similar-wanted">
-          <value value="10"></value>
-          <value value="30"></value>
-          <value value="50"></value>
-          <value value="70"></value>
-          <value value="80"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="density">
-          <value value="70"></value>
-          <value value="85"></value>
-          <value value="95"></value>
-        </enumeratedValueSet>
-      </constants>
-    </experiment>
-  </experiments>
 </model>

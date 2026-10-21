@@ -3,12 +3,12 @@
   <code><![CDATA[breed [citizens citizen]
 
 patches-own [
-  occupied_lot?    ; whether a citizen occupies this location
+  occupied_lot?    ; whether this residential location is occupied
 ]
 
 citizens-own [
   group             ; group membership: 0 or 1
-  requirement-met?  ; whether the imposed neighborhood minimum is met
+  requirement-met?  ; compliance with the imposed minimum
 ]
 
 
@@ -21,7 +21,8 @@ to setup
     set pcolor white
     set occupied_lot? false
 
-    if random 100 < 85 [  ; density given
+    ; Each location has an 85% probability of being occupied.
+    if random 100 < 85 [
       set occupied_lot? true
 
       sprout-citizens 1 [
@@ -31,6 +32,7 @@ to setup
     ]
   ]
 
+  ; Calculate initial compliance and display it.
   ask citizens [
     evaluate
     update
@@ -41,15 +43,14 @@ end
 
 
 to go
-  ; Stop when no citizen is required to relocate.
   if all? citizens [requirement-met?] [stop]
 
-  ; Citizens below the imposed minimum must attempt relocation.
+  ; Citizens below the minimum attempt relocation in random order.
   ask citizens with [not requirement-met?] [
     move
   ]
 
-  ; Reevaluate all neighborhoods after the relocation stage.
+  ; Reevaluate everyone after the relocation stage.
   ask citizens [
     evaluate
     update
@@ -72,6 +73,7 @@ to move
       set occupied_lot? false
     ]
 
+    ; The destination is chosen for vacancy, not similarity.
     move-to destination
 
     ask destination [
@@ -81,14 +83,15 @@ to move
 end
 
 
-; Citizen reporter: [same-group count, total count]
 to-report neighborhood-counts
+  ; Count citizens on surrounding patches, excluding this patch.
   let nearby citizens-on neighbors
   let my-group group
 
   let same-group-count count nearby with [group = my-group]
   let total-count count nearby
 
+  ; Return two values; list positions start at zero.
   report (list same-group-count total-count)
 end
 
@@ -98,7 +101,7 @@ to evaluate
   let similar-nearby item 0 counts
   let total-nearby item 1 counts
 
-  ; Check the imposed rule, not personal satisfaction.
+  ; Compliance is not personal satisfaction.
   ; With no occupied neighbors, the requirement is met.
   set requirement-met? similar-nearby >=
     (%-similar-required * total-nearby / 100)
@@ -106,6 +109,7 @@ end
 
 
 to update
+  ; Color shows group; shape shows compliance.
   ifelse requirement-met? [
     set shape "square"
   ] [
@@ -119,6 +123,7 @@ end
 to-report calculate-percent-similar
   let counts-by-citizen [neighborhood-counts] of citizens
 
+  ; Extract and sum each type of count.
   let similar-neighbors sum
     (map [counts -> item 0 counts] counts-by-citizen)
 
@@ -127,7 +132,7 @@ to-report calculate-percent-similar
 
   if total-neighbors = 0 [report 0]
 
-  ; Preserve the original pooled-neighbor measure.
+  ; Pool counts before calculating the percentage.
   report 100 * similar-neighbors / total-neighbors
 end
 
@@ -141,9 +146,11 @@ to-report calculate-percent-required-to-relocate
 end
 
 
-; Observer: export final positions without overwriting existing files
+; Observer: save final locations
+; Enter export-final-positions in BehaviorSpace's Post run commands.
 
 to export-final-positions
+  ; Link the position file to its run and endpoint tick.
   let base-name (word
     "positions-run-" behaviorspace-run-number
     "-tick-" ticks)
@@ -151,16 +158,21 @@ to export-final-positions
   let filename (word base-name ".csv")
   let suffix 1
 
-  ; Automatically find an unused filename.
+  ; Add a suffix if necessary to avoid overwriting an existing file.
   while [file-exists? filename] [
     set filename (word base-name "-" suffix ".csv")
     set suffix suffix + 1
   ]
 
+  ; Relative filenames use NetLogo's current working directory.
   file-open filename
   file-print "run,minimum,ticks,citizen,group,x,y"
 
+  ; Write citizens in identifier order, one row per citizen.
   foreach sort citizens [ person ->
+    ; xcor is the horizontal coordinate; ycor is the vertical one.
+    ; Together they locate this citizen on the residential grid.
+    ; Group identifies which population occupies that location.
     file-print (word
       behaviorspace-run-number ","
       %-similar-required ","
@@ -171,6 +183,7 @@ to export-final-positions
       [ycor] of person)
   ]
 
+  ; Close the file after all rows have been written.
   file-close
 end
 
@@ -203,173 +216,219 @@ end
     <monitor x="965" precision="1" y="225" height="60" fontSize="11" width="150" display="% required-to-relocate">calculate-percent-required-to-relocate</monitor>
     <monitor x="965" precision="1" y="155" height="60" fontSize="11" width="150" display="% similar">calculate-percent-similar</monitor>
   </widgets>
-  <info><![CDATA[# Schelling Segregation Model
+  <info><![CDATA[# Schelling Segregation Model: Policy Version
 
 ## WHAT IS IT?
 
-This course model was adapted by Prof. Jose Magallanes from Uri Wilensky’s NetLogo Segregation model (1997). It supports reverse engineering, design critique, and experiments with a policy-relevant question.
+This course model was adapted by Prof. Jose Magallanes from Uri Wilensky’s NetLogo Segregation model (1997). It examines whether an imposed neighbourhood rule can produce residential mixing and allow relocation to stop.
 
-The model explores how individual residential choices can produce collective segregation. Citizens belong to one of two groups and occupy locations on a residential grid. Each citizen requires a minimum percentage of its occupied neighbours to belong to its own group. Citizens whose neighbourhoods fall below that threshold are unhappy and relocate to a randomly selected vacant location.
+Citizens belong to one of two groups and occupy residential locations. The policy sets a minimum percentage of occupied neighbours who must belong to the citizen’s own group. Citizens below that minimum must attempt relocation to a randomly selected vacant location. Citizens meeting the requirement remain in place.
 
-A move changes the neighbourhoods experienced by others. Their responses can generate spatial clusters even when citizens accept substantial mixing. This illustrates Schelling’s point: **collective outcomes can be more segregated than individuals intended**.
+The rule represents administrative compliance, not personal happiness or approval. A minimum of 30% allows citizens to remain with 30%, 60%, or even 100% same-group neighbours. It does not require balanced neighbourhoods.
 
-The model demonstrates one possible mechanism. It does not provide a complete explanation of real residential segregation or establish individuals’ motives. It does not represent housing prices, income differences, discriminatory institutions, or access to jobs and services.
+The model represents a residential mechanism. It does not represent housing prices, enforcement institutions, moving costs, revolt, or political support.
 
 ## HOW TO USE IT
 
-Click **SETUP** to initialize the population. Each patch has a probability of receiving one citizen, controlled by `density`. Each new citizen independently receives group 0 or group 1 with equal probability. Population size and group proportions therefore vary across runs. No patch initially contains more than one citizen.
+Use a **51 × 51 world**, with coordinates −25 through 25 on both axes, and turn off horizontal and vertical wrapping. These are world settings; `setup` does not set the world size or topology.
 
-Blue and orange display group membership. Squares display satisfied citizens, and Xs display dissatisfied citizens. The `group` state determines similarity. Color displays group membership, while shape displays satisfaction.
+Click **SETUP** to initialize the population. Each patch independently has an **85% probability** of receiving one citizen. This probability is fixed in the code. Realized population size varies across runs. Each citizen independently receives group 0 or 1 with equal probability.
 
-Click **GO ONCE** to execute one cycle or **GO** to run continuously. When horizontal and vertical wrapping are enabled in NetLogo's world settings, the residential grid wraps across both boundaries.
+Blue and orange indicate group membership. Squares indicate citizens meeting the imposed requirement; Xs indicate citizens required to relocate.
 
-`density` takes effect when SETUP runs. `%-similar-wanted` sets the minimum percentage of same-group neighbours required for satisfaction. At a value of 30, a citizen needs at least 30% of its occupied neighbours to belong to its own group. Run SETUP after changing the threshold when comparing fresh scenarios.
+Set `%-similar-required` to the imposed minimum. Click **GO ONCE** for one cycle or **GO** to continue. Run SETUP when comparing fresh scenarios at different minimums.
 
 ## HOW IT WORKS
 
 ### Initialization (`setup`)
 
-- Clear the previous simulation.
-- Define the colors of the two citizen groups.
-- Initialize residential locations and create citizens.
-- Populate each location according to the `density` parameter.
-- Assign each citizen a group randomly (0 or 1) and assign the corresponding color.
-- Initialize citizen satisfaction and appearance.
-- Initialize the simulation clock.
+The model clears the previous simulation, makes patches white, and initializes `occupied_lot?` to `false`. Selected patches become occupied and create one citizen each. Citizens receive a group and its corresponding color. Every citizen evaluates the requirement and updates its shape. Finally, `reset-ticks` initializes the clock.
 
 ### Simulation (`go`)
 
-- Stop the simulation when all citizens are satisfied.
-- Relocate dissatisfied citizens to available locations.
-- Reevaluate satisfaction and update appearance after relocation.
-- Advance the simulation clock.
+At the start of each cycle, the model stops if all citizens meet the requirement. Otherwise, citizens currently below it attempt relocation in random order. After the relocation stage, all citizens reevaluate their neighbourhoods and update their shapes. The clock advances by one tick.
 
-### Citizen methods (A1)
+A citizen’s move can change other citizens’ neighbourhoods. Compliance is reevaluated after the relocation stage, not after each individual move. A tick has no assigned calendar duration.
 
-**`move()` — Relocation**
+### Relocation (`move`)
 
-- Identify all unoccupied residential locations.
-- Relocate only if an available location exists.
-- Record the current location and select a random vacant location.
-- Release the current location.
-- Relocate the citizen.
-- Occupy the new location.
+The citizen identifies all patches with `occupied_lot? = false`. If any exist, it selects one randomly, marks its origin vacant, moves to the destination, and marks the destination occupied. This maintains one citizen per patch.
 
-**`evaluate()` — Neighbourhood evaluation**
+The destination is selected for vacancy, not for its same-group composition. If no vacant patch exists, the citizen stays in place.
 
-- Count same-group citizens on the eight surrounding patches.
-- Count other-group citizens on the eight surrounding patches.
-- Calculate the total number of occupied neighbouring locations.
-- Determine satisfaction based on the required similarity percentage.
+### Neighbourhood counts (`neighborhood-counts`)
 
-**`update()` — Appearance**
+This citizen reporter returns a two-item list: the number of same-group neighbours and the total number of neighbouring citizens. It examines surrounding patches, excluding the citizen’s own patch. In the bounded world, edge and corner patches have fewer neighbours.
 
-- Represent satisfied citizens as squares and dissatisfied citizens as Xs.
+Both evaluation and the pooled similarity indicator use this reporter. Counts are calculated when requested rather than stored as citizen attributes.
 
-### Observer: Global indicators
+### Requirement evaluation (`evaluate`)
 
-**`calculate-percent-similar` — Reporter**
+A citizen meets the requirement when:
 
-- Count all same-group neighbour observations.
-- Count all occupied-neighbour observations.
-- Calculate the percentage of neighbours belonging to the same group.
-- Report zero when there are no occupied-neighbour observations.
+    similar-nearby >= (%-similar-required * total-nearby / 100)
 
-**`calculate-percent-unhappy` — Reporter**
+The result is stored in `requirement-met?`. Empty neighbouring locations do not enter the percentage. A citizen with no occupied neighbours meets the requirement because both sides of the comparison are zero.
 
-- Calculate the percentage of dissatisfied citizens.
-- Report zero when there are no citizens.
+### Appearance (`update`)
 
-The observer coordinates simulation execution through `setup` and `go`, while observer-level reporters calculate macro-level measurements. Citizen procedures implement individual behavior.
+Citizens meeting the requirement become squares; those below it become Xs. This procedure changes shape, not group or location.
 
 ## MEASURES AND VISUALIZATION
 
-**% SIMILAR** reports the percentage of pooled neighbour observations belonging to the same group. The reporter `calculate-percent-similar` sums `similar-nearby` across citizens and divides by the sum of `total-nearby`. Citizens with more neighbours contribute more weight. This is an indicator of local similarity rather than a simple average of each citizen's percentage or a comprehensive measure of segregation.
+The model has two collective indicator reporters:
 
-**NUM-UNHAPPY** reports the number of dissatisfied citizens. **% UNHAPPY** reports that number as a percentage of the population, calculated by `calculate-percent-unhappy`.
+- **`calculate-percent-similar`** pools same-group neighbour counts across citizens and divides by the pooled total neighbour count, multiplied by 100. Citizens with more neighbours contribute more weight. It reports zero if there are no neighbour observations.
+- **`calculate-percent-required-to-relocate`** reports the percentage of citizens with `requirement-met? = false`. It reports zero if there are no citizens.
 
-The Percent Similar plot uses `calculate-percent-similar`. The Number-unhappy plot displays the number of dissatisfied citizens, calculated using:
+Use these reporters in monitors, plot pens, and BehaviorSpace. Similarity measures local same-group association; it is not a complete description of spatial segregation. Zero required relocation means everyone meets the rule, not that the city is integrated.
 
-```netlogo
-count citizens with [not happy?]
-```
+## SAVING FINAL LOCATIONS
 
-The two groups initially mix randomly, so initial similarity will generally be near 50%, with variation between runs. Color identifies group membership. Shape makes satisfaction visible while students inspect the spatial pattern.
+### Why save locations?
+
+The BehaviorSpace summary records collective outcomes. It does not preserve where individual citizens live. The procedure **`export-final-positions`** saves an endpoint snapshot so the spatial notebook can reconstruct the residential arrangement and calculate segregation indices.
+
+This snapshot records final locations only. It does not record movement paths, intermediate configurations, or the number of moves made by each citizen.
+
+### When to save
+
+Enter the following in BehaviorSpace’s **Post run commands**:
+
+    export-final-positions
+
+BehaviorSpace calls it once at the end of each run, including runs ending at the time limit. Defining the procedure in the Code tab alone does not make it run. Neither `setup` nor `go` calls it automatically.
+
+### Filename and contents
+
+The procedure uses the BehaviorSpace run number and final tick to construct a filename such as:
+
+    positions-run-1-tick-12.csv
+
+This identifies run 1 ending at tick 12. The file has the header:
+
+    run,minimum,ticks,citizen,group,x,y
+
+- `run`: BehaviorSpace run number, used to match the summary table.
+- `minimum`: imposed value of `%-similar-required`.
+- `ticks`: clock value when the snapshot is saved.
+- `citizen`: citizen identifier, from `who`.
+- `group`: group membership, 0 or 1.
+- `x`: final horizontal coordinate, from `xcor`.
+- `y`: final vertical coordinate, from `ycor`.
+
+The procedure writes one row per citizen, ordered by citizen identifier, then closes the file. Vacant patches have no rows. Notebook 2 reconstructs the full grid and treats locations without a citizen as vacant. Citizen identifiers apply within a run and should not be treated as the same people across independent runs.
+
+The filename supplies the run and endpoint tick expected by Notebook 2. The columns also preserve the minimum and group needed to interpret each location. Keep each position file with the summary table from the same experiment.
+
+### Where files go and how existing files are protected
+
+The code uses relative filenames, so files are written to NetLogo’s current working directory—normally the model’s directory when using a saved model. Check the destination with a small test before running the full experiment.
+
+If a filename already exists, the procedure adds a suffix, for example:
+
+    positions-run-1-tick-12-1.csv
+
+It increases the suffix until it finds an unused name. This protects existing files from overwriting. However, the supplied spatial notebook expects the original unsuffixed filename. Use a fresh model/output directory for each experiment, or adapt the notebook’s file-loading logic if using suffixed files. Do not mix position files from different experiments.
+
+### Check the exports
+
+Before the full experiment, test one run in a separate directory so its position file does not cause a filename collision during the full experiment. Open its position CSV and confirm that the header and citizen rows are present and that the run number and tick match the summary. A complete 510-run experiment should produce **510 position CSVs plus the BehaviorSpace summary CSV**.
+
+The files contain no random seeds or complete model configuration. Preserve the model, experiment settings, and seeds separately if exact reproduction is required.
 
 ## THINGS TO NOTICE
 
-Do the clusters become more distinct as citizens move? Does a move make other citizens satisfied or dissatisfied?
+Does relocation change other citizens’ compliance? Does everyone meeting the requirement imply broadly mixed neighbourhoods?
 
-Does everyone becoming satisfied imply that the population remains mixed? Compare the map, % SIMILAR, and % UNHAPPY before answering.
-
-The number of dissatisfied citizens need not fall at every cycle. Movement can create new dissatisfied citizens. Outcomes and time to stop vary across parameter settings and random initial populations.
+Compare the map, pooled similarity, and percentage required to relocate. A settled city may remain strongly separated. A mixed-looking endpoint may still have many citizens below the imposed minimum.
 
 ## REVERSE ENGINEERING
 
-Recover the specification from the code before proposing improvements.
+- **A1 — Agent:** Citizen, with owned states `group` and `requirement-met?`.
+- **A2 — Arena:** City, represented by patches with the owned state `occupied_lot?`.
+- **A3 — Artificiality:** No separate housing market or enforcement institution is represented.
+- **A4 — Array:** Citizen–City occupancy and access to vacancies; Citizen–Citizen neighbourhood relations.
 
-- `breed [citizens citizen]` defines the Citizen breed. Both residential groups belong to this breed; their membership is represented by the `group` state.
-- `citizens-own` declares the states `group`, `happy?`, `similar-nearby`, `other-nearby`, and `total-nearby`.
-- `patches-own [occupied?]` declares the occupancy state of each residential location.
-- Patches represent **A2**, the residential arena. SETUP initializes their appearance and occupancy.
-- Built-in attributes such as color, shape, size, and position need no additional declaration, but their conceptual meaning still requires specification.
-- The **Four As** identify Agent, Arena, Artificiality, and Array. Citizens are A1 agents; the residential grid forms the A2 arena. The model represents local neighbourhood relations and emerging spatial arrangements without explicit housing-market or institutional mechanisms.
-- **LUL** describes classes, states, capabilities, and relations. The Citizen class has three principal methods: `move()`, `evaluate()`, and `update()`. The City arena represents residential locations whose occupancy is stored in the patch state `occupied?`. The arena does not make autonomous residential decisions.
-- The **FChart** describes the execution sequence: GO, stopping condition, relocation, evaluation, appearance update, and CLOCK. Observer-level reporters calculate macro-level indicators independently when requested.
-- **Procedures** (`to`) perform operations that may change the simulation state, while **reporters** (`to-report`) calculate and return values. The model uses Citizen procedures for behavior and observer-level reporters for macro-level measurements.
-
-Reconfiguration may resume when inspecting implementation reveals an unclear meaning or an omitted mechanism.
+Citizen procedures implement relocation, evaluation, and appearance. `neighborhood-counts` returns local information. Observer reporters calculate collective indicators, while `export-final-positions` writes the endpoint data. Exporting locations does not change the residential arrangement.
 
 ## THINGS TO TRY: A POLICY QUESTION
 
-**Would greater acceptance of mixed neighbourhoods be sufficient to reduce segregation?**
+**Would an imposed 30% same-group minimum produce broadly mixed residential neighbourhoods in which relocation eventually stops?**
 
-Use BehaviorSpace to compare lower and higher values of `%-similar-wanted` across several densities. Repeat each parameter combination to observe variation between runs.
+A hypothetical Residential Integration Act imposes this rule in a city with approximately **85% occupancy**. Citizens below the minimum must attempt relocation; those meeting it remain in place. A minimum is not a target composition: a citizen with 100% same-group neighbours also meets the 30% requirement.
 
-A proposed classroom experiment uses densities **70, 85, and 95**; thresholds **10, 30, 50, 70 and 80**; and **twenty repetitions** per combination, for **300 runs**.
+The fictional advisers expect residential mixing to reduce the perceived risk of collective mobilization against a dictatorial regime. The simulation tests the residential mechanism on which that argument depends; it does not test revolt risk.
 
-Use `setup` and `go`, a limit of 1,000 steps, and the following final measurements:
+### Questions to investigate
 
-- `calculate-percent-similar`
-- `calculate-percent-unhappy`
-- `ticks`
-- `all? citizens [happy?]`
+1. Does the proposed 30% minimum produce broadly mixed neighbourhoods?
+2. Does relocation eventually stop? Does everyone meeting the rule imply integration?
+3. How do lower and higher minimums affect residential separation and the time needed to settle?
+4. Can a mixed-looking city still have many citizens required to relocate?
+5. What recommendation would you make about the proposed rule? What can this model establish about the advisers’ claimed reduction in revolt risk?
 
-Export the results for analysis outside NetLogo. Compare the two percentage indicators across parameter combinations. Use `ticks` and `all? citizens [happy?]` to distinguish all-happy endings from runs reaching the step limit. A capped run does not establish equilibrium.
+### Run BehaviorSpace
 
-Lowering the threshold represents a hypothesized change in preferences. It does not implement or evaluate a specific policy program. A real policy analysis must represent how an intervention changes preferences or feasible choices and use relevant empirical evidence.
+Initial occupancy probability is fixed at **85% in the code**; no density parameter needs to be added to BehaviorSpace. Use the **51 × 51 world without wrapping**. Test minimums from **10% to 90% in five-point steps**, with **30 repetitions** per minimum: **510 runs**.
+
+**Setup commands** — enter these on separate lines:
+
+    set-topology false false
+    setup
+
+**Go commands:**
+
+    go
+
+**Stop condition:**
+
+    all? citizens [requirement-met?]
+
+**Time limit:** 1000.
+
+**Repetitions:** 30.
+
+**Post run commands:**
+
+    export-final-positions
+
+**Run metrics every step:** leave unchecked.
+
+Parameter specification:
+
+    ["%-similar-required" [10 5 90]]
+
+Final measurements, one per line:
+
+    calculate-percent-similar
+    calculate-percent-required-to-relocate
+    ticks
+    all? citizens [requirement-met?]
+
+Save the BehaviorSpace table as `policy-relocation-table.csv`. Keep it with the matching position files. Check that the summary contains **510 distinct runs**, **17 minimums**, and **30 repetitions per minimum**, with one matching position file for every run.
+
+Use **01_Classic_Policy_Analysis.ipynb** to analyze summary outcomes and **02_Spatial_Clustering_PySAL.ipynb** to examine spatial separation. The supplied notebooks load repository data; point their loading cells to your experiment’s summary and position files when analyzing your own runs.
+
+Compare variation across repetitions and distinguish settled runs from unresolved endpoints at the limit. Use both analyses to answer the policy questions.
 
 ## NETLOGO FEATURES AND MODEL LIMITS
 
-`sprout-citizens` creates citizens on patches. In SETUP, each selected patch creates exactly one citizen.
+`sprout-citizens` creates citizens on patches. `ask` executes selected agents in random order. `one-of` selects a vacant destination randomly, and explicit occupancy updates preserve the one-citizen-per-patch constraint.
 
-`ask` selects the agents that act. Called procedures retain the executing agent’s context.
+The local variables declared with `let` exist only during the executing procedure. They are not persistent citizen attributes. The two indicator reporters guard against division by zero.
 
-`move` identifies vacant patches using `patches with [not occupied?]` and selects a random destination using `one-of`. The procedure uses `any?` to verify that at least one vacant location exists.
+Use the final `all? citizens [requirement-met?]` measurement to identify settled runs. A run meeting the requirement at tick 1,000 is settled at the limit; a run ending there with `false` remains unresolved.
 
-`patch-here` identifies the citizen’s current location. `move-to` relocates the citizen directly to the selected destination patch.
+The `go` procedure stops when everyone meets the requirement. The 1,000-step cap is a BehaviorSpace setting, not a stopping rule inside `go`.
 
-The `occupied?` state is updated explicitly: the origin becomes vacant and the destination becomes occupied. This maintains the one-citizen-per-patch constraint.
-
-The `evaluate` method uses `citizens-on neighbors` to identify citizens on the eight surrounding patches. The `with` condition compares their group membership with that of the evaluating citizen, using `myself`.
-
-Citizens with no occupied neighbours are considered satisfied because their required number of same-group neighbours is zero.
-
-The `update` method changes the citizen’s shape according to its satisfaction state. It does not change group membership or location.
-
-`calculate-percent-similar` and `calculate-percent-unhappy` are observer-level reporters that calculate macro-level indicators from the citizens’ states. They can be called directly by monitors, plots, and BehaviorSpace.
-
-Both reporters guard against division by zero. `calculate-percent-similar` reports zero when there are no occupied-neighbour observations, while `calculate-percent-unhappy` reports zero when there are no citizens.
-
-When no vacant patches exist, `move` leaves dissatisfied citizens in place. The simulation may therefore continue without achieving an all-satisfied state.
-
-A BehaviorSpace step limit restricts the number of simulation steps. Reaching that limit does not establish that the system has reached equilibrium.
+The model assumes obedience and unrestricted access to vacant locations. It omits moving burdens, housing costs, discrimination, and enforcement processes. Meeting the requirement does not demonstrate integration, personal approval, or political stability. Capped endpoints do not establish equilibrium.
 
 ## CREDITS AND REFERENCES
 
 This teaching adaptation defines an explicit Citizen breed, separates group membership from color, introduces patch occupancy states, and replaces the original movement search with direct relocation to randomly selected vacant patches.
 
-The adaptation separates neighbourhood evaluation, relocation, and appearance updates into Citizen procedures, while macro-level indicators are calculated through observer-level reporters.
+The adaptation separates neighbourhood evaluation, relocation, and appearance updates into Citizen procedures, while macro-level indicators are calculated through observer-level reporters. This policy version uses an imposed requirement rather than personal satisfaction and exports final citizen locations for spatial analysis.
 
 The reverse-engineering scaffold and proposed experiments are teaching adaptations, rather than claims made by the original authors.
 
@@ -1211,8 +1270,9 @@ This model was converted to NetLogo as part of the projects: PARTICIPATORY SIMUL
   </linkShapes>
   <previewCommands>setup repeat 75 [ go ]</previewCommands>
   <experiments>
-    <experiment name="policy-relocation" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="false" timeLimit="1000">
-      <setup>setup</setup>
+    <experiment name="policy-relocation" repetitions="30" sequentialRunOrder="true" runMetricsEveryStep="false" timeLimit="1000">
+      <setup>set-topology false false
+setup</setup>
       <go>go</go>
       <postRun>export-final-positions</postRun>
       <exitCondition>all? citizens [requirement-met?]</exitCondition>
