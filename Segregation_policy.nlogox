@@ -14,9 +14,6 @@ citizens-own [
 
 to setup
   clear-all
-
-  let color-map (list blue orange)
-
   ask patches [
     set pcolor white
     set occupied_lot? false
@@ -26,6 +23,7 @@ to setup
       set occupied_lot? true
 
       sprout-citizens 1 [
+        let color-map (list blue orange)
         set group one-of [0 1]
         set color item group color-map
       ]
