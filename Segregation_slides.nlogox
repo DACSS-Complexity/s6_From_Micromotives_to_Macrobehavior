@@ -175,7 +175,7 @@ end
 
 ## WHAT IS IT?
 
-This course model was adapted by Prof. Jose Magallanes from Uri Wilensky’s NetLogo Segregation model (1997). It supports interactive exploration, reverse engineering, and design critique.
+This course model was adapted by Prof. Jose Magallanes from Uri Wilensky’s NetLogo Segregation model (1997). 
 
 The model explores how individual residential choices can produce collective segregation. Citizens belong to one of two groups and occupy locations on a residential grid. Each citizen requires a minimum percentage of its occupied neighbours to belong to its own group. Citizens whose neighbourhoods fall below that threshold are unhappy and relocate to a randomly selected vacant location.
 
@@ -268,21 +268,6 @@ Does everyone becoming satisfied imply that the population remains mixed? Compar
 
 The number of dissatisfied citizens need not fall at every cycle. Movement can create new dissatisfied citizens. Outcomes and time to stop vary across parameter settings and random initial populations.
 
-## REVERSE ENGINEERING
-
-Recover the specification from the code before proposing improvements.
-
-- `breed [citizens citizen]` defines the Citizen breed. Both residential groups belong to this breed; their membership is represented by the `group` state.
-- `citizens-own` declares the states `group`, `happy?`, `similar-nearby`, `other-nearby`, and `total-nearby`.
-- `patches-own [occupied_lot?]` declares the occupancy state of each residential location.
-- Patches represent **A2**, the residential arena. SETUP initializes their appearance and occupancy.
-- Built-in attributes such as color, shape, size, and position need no additional declaration, but their conceptual meaning still requires specification.
-- The **Four As** identify Agent, Arena, Artificiality, and Array. **A1 — Agent:** Citizen. **A2 — Arena:** City, represented by residential patches. **A3 — Artificiality:** No separate artificiality is required in this simplified model; it contains no explicit housing-market or institutional mechanisms. **A4 — Array:** Citizen–City relations represent occupancy and access to vacant locations; Citizen–Citizen relations represent detection of neighbouring citizens.
-- **LUL** describes classes, states, capabilities, and relations. The Citizen class has three principal methods: `move()`, `evaluate()`, and `update()`. The City arena represents residential locations whose occupancy is stored in the patch state `occupied_lot?`. The arena does not make autonomous residential decisions. The slides use the conceptual method names `evaluate_neighbourhood()` and `update_appearance()`; these correspond to `evaluate` and `update` in the code. Diagram labels such as `happy` and `occupied_lot` correspond to the Boolean code states `happy?` and `occupied_lot?`.
-- The **FChart** describes the execution sequence: GO, stopping condition, relocation, evaluation, appearance update, and CLOCK. Observer-level reporters calculate macro-level indicators independently when requested.
-- **Procedures** (`to`) perform operations that may change the simulation state, while **reporters** (`to-report`) calculate and return values. The model uses Citizen procedures for behavior and observer-level reporters for macro-level measurements.
-
-Reconfiguration may resume when inspecting implementation reveals an unclear meaning or an omitted mechanism.
 
 
 ## THINGS TO TRY
@@ -305,19 +290,7 @@ Keep `%-similar-wanted` fixed and compare lower and higher values of `density`. 
 - How do density and the number of occupied neighbours affect happiness?
 - What happens if no vacant locations are available while some citizens remain unhappy?
 
-### Follow the feedback
 
-Use GO ONCE to inspect successive cycles. Follow changes in the map, shapes, and both percentage indicators.
-
-- Can an unhappy citizen move and remain unhappy?
-- Can a move make a previously happy citizen unhappy?
-- Must % UNHAPPY decrease every cycle?
-
-### Repeat and explain
-
-Repeat SETUP with the same parameter values several times. Compare initial populations, final patterns, and stopping times. Random initialization and movement can produce different outcomes under the same settings.
-
-Use the code to explain your observations. Distinguish individual happiness from collective residential similarity, and identify what this simplified model leaves out of real residential decisions.
 
 ## NETLOGO FEATURES AND MODEL LIMITS
 
